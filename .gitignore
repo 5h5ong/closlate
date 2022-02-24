@@ -1,0 +1,21 @@
+/target
+/classes
+/checkouts
+profiles.clj
+pom.xml
+pom.xml.asc
+*.jar
+*.class
+/.lein-*
+/.nrepl-port
+/.prepl-port
+.hgignore
+.hg/
+.clj-kondo
+.calva
+.lsp
+.idea
+# 프로젝트의 초기 정보. 없으면 ide가 맛이 감.
+clojure-translate.iml
+# 앱의 Secret, Id 등의 중요 정보
+config.json
