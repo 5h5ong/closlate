@@ -150,6 +150,25 @@
       ; Read config.json File
       (slurp "config.json"))))
 
+(defn get-json-file
+  "
+  config.json의 설정들을 가져옴. project.clj에 config.json이 있어야 인식이 됨.
+  "
+  [filename]
+  (some->>
+    ; check file is exists
+    ; if not, return nil to end the process
+    (if (.exists (io/file filename))
+      filename
+      (println (format "%s이 존재하지 않습니다!" filename)))
+    ; read json file
+    (slurp)
+    ; parsing json
+    (cheshire/parse-string)
+    ; cheshire가 파싱한 데이터는 key가 문자열임. 문자열보단
+    ; 키워드가 맵을 다루는데 더 좋으니 문자열을 모두 키워드로 바꿈.
+    (walk/keywordize-keys)))
+
 (defn validate-config
   "config에 필요한 데이터들이 모두 들어있는지 확인함."
   [config]
