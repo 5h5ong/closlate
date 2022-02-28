@@ -159,6 +159,24 @@
       (not (contains?-config :id)) (println "id이(가) 존재하지 않습니다. id을(를) 정의해주세요.")
       :else true)))
 
+(defn exists-hashmap-keys
+  "
+  받은 키가 map의 키로 존재하는지 확인함.
+
+  존재하지 않는 키를 모은 벡터를 리턴함.
+  "
+  [input-hash-map compareKeys]
+  (let
+    [contains?-hashmap (partial contains? input-hash-map)]
+    (reduce
+      (fn [results key]
+        (if
+          (contains?-hashmap key)
+          results
+          (conj results key)))
+      []
+      compareKeys)))
+
 (defn -main
   "
   clojure-translate {번역할 디렉토리} {번역될 언어} {번역할 언어}
