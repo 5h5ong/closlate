@@ -138,18 +138,6 @@
   [translateFn files]
   (map (partial translate-file translateFn) files))
 
-(defn get-config-file
-  "config.json의 설정들을 가져옴. project.clj에 config.json이 있어야 인식이 됨.
-  clojure.lang.PersistentArrayMap을 리턴함."
-  []
-  ; cheshire가 파싱한 데이터는 key가 문자열임. 문자열보단
-  ; 키워드가 맵을 다루는데 더 좋으니 문자열을 모두 키워드로 바꿈.
-  (walk/keywordize-keys
-    ; Parsing Json
-    (cheshire/parse-string
-      ; Read config.json File
-      (slurp "config.json"))))
-
 (defn get-json-file
   "
   config.json의 설정들을 가져옴. project.clj에 config.json이 있어야 인식이 됨.
@@ -169,20 +157,9 @@
     ; 키워드가 맵을 다루는데 더 좋으니 문자열을 모두 키워드로 바꿈.
     (walk/keywordize-keys)))
 
-(defn validate-config
-  "config에 필요한 데이터들이 모두 들어있는지 확인함."
-  [config]
-  (let [contains?-config (partial contains? config)]
-    (cond
-      (not (contains?-config :secret)) (println "secret이(가) 존재하지 않습니다. secret을(를) 정의해주세요.")
-      (not (contains?-config :id)) (println "id이(가) 존재하지 않습니다. id을(를) 정의해주세요.")
-      :else true)))
-
-(defn exists-hashmap-keys
+(defn not-exists-hashmap-keys
   "
-  받은 키가 map의 키로 존재하는지 확인함.
-
-  존재하지 않는 키를 모은 벡터를 리턴함.
+  해시맵에서 존재하지 않는 키를 모아 리턴함.
   "
   [input-hash-map compareKeys]
   (let
@@ -196,29 +173,51 @@
       []
       compareKeys)))
 
+(defn print-not-exists-key
+  "
+  벡터에 넣어진 키를 하나씩 가져와 프린트 함.
+  "
+  [input-keys]
+  (dorun (map #(println (format "%s키가 존재하지 않습니다." %))
+              input-keys)))
+
+(defn check-hashmap-keys
+  "
+  받은 키가 해쉬맵에 존재하는지 확인 후 없으면 예외 메세지를 출력 후 nil를 리턴함.
+  만약, 모든 키가 존재한다면 받은 해쉬맵을 그대로 반환함.
+  "
+  [input-hashmap keyToBeCheck]
+  (let
+    [keyVector (not-exists-hashmap-keys input-hashmap keyToBeCheck)]
+    (if (not-empty keyVector)
+      (print-not-exists-key keyVector)
+      input-hashmap)))
+
+(defn translate!
+  [config directoryName source target]
+  (let
+    [{id :id secret :secret} config]
+    (let [translated-hash-map (->> (io/file directoryName)
+                                   (get-files-stack)
+                                   (translate-files #(get-response-data
+                                                       (request-papago
+                                                         secret
+                                                         id
+                                                         source
+                                                         target
+                                                         %)))
+                                   (filter some?))]
+      (doall (map (fn [hash-map] (let
+                                   [{origin     :originFile
+                                     translated :translatedFile} hash-map]
+                                   (println "before:" origin)
+                                   (println "after:" translated)
+                                   (.renameTo origin translated)))
+                  translated-hash-map)))))
+
 (defn -main
-  "
-  clojure-translate {번역할 디렉토리} {번역될 언어} {번역할 언어}
-  "
   [& args]
-  (if (validate-config (get-config-file))
-    (let
-      [{secret :secret id :id} (get-config-file)
-       [directoryName source target] args]
-      (let [translated-hash-map (->> (io/file directoryName)
-                                     (get-files-stack)
-                                     (translate-files #(get-response-data
-                                                         (request-papago
-                                                           secret
-                                                           id
-                                                           source
-                                                           target
-                                                           %)))
-                                     (filter some?))]
-        (doall (map (fn [hash-map] (let
-                                     [{origin     :originFile
-                                       translated :translatedFile} hash-map]
-                                     (println "before:" origin)
-                                     (println "after:" translated)
-                                     (.renameTo origin translated)))
-                    translated-hash-map))))))
+  (let [[directoryName source target] args]
+    (some-> (get-json-file "config.json")
+            (check-hashmap-keys [:id :secret])
+            (translate! directoryName source target))))
