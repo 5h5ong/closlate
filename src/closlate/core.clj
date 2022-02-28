@@ -1,4 +1,4 @@
-(ns clojure-translate.core
+(ns closlate.core
   (:gen-class)
   (:require [clojure.java.io :as io])
   (:require [clj-http.client :as client])
