@@ -84,9 +84,9 @@
 
 (defn chop-path
   "파일 경로(/)로 문자열을 자른 lasy sequence를 리턴함"
-  [filepath]
+  [separator filepath]
   (->>
-    (File/separator)
+    separator
     (exchange-windows-separator)
     re-pattern
     (str/split filepath)))
@@ -96,8 +96,8 @@
   (let
     [path-join (partial str/join "/")]
     (->
-      filepath
-      chop-path
+      (File/separator)
+      (chop-path filepath)
       drop-last
       vec
       (conj toBeChanged)
