@@ -16,6 +16,6 @@ pom.xml.asc
 .lsp
 .idea
 # 프로젝트의 초기 정보. 없으면 ide가 맛이 감.
-clojure-translate.iml
+closlate.iml
 # 앱의 Secret, Id 등의 중요 정보
 config.json
