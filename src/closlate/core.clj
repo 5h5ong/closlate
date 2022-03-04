@@ -7,6 +7,11 @@
             [clojure.string :as str])
   (:import (java.io File)))
 
+(defn println!
+  [data]
+  (doto data
+    (println)))
+
 (defn get-file-name [file] (.getName file))
 
 (defn get-file-path [file] (.getPath file))
