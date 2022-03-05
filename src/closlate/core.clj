@@ -8,9 +8,17 @@
   (:import (java.io File)))
 
 (defn println!
-  [data]
-  (doto data
-    (println)))
+  "
+  들어온 data에 fn을 적용해 prefix와 함께 출력한 후 data를 반환함
+
+  threading macros 안에서 println이 필요할 때 사용됨.
+  "
+  [prefix fn data]
+  (->>
+    data
+    (fn)
+    (println prefix))
+  data)
 
 (defn get-file-name [file] (.getName file))
 
@@ -203,6 +211,7 @@
   (let
     [{id :id secret :secret} config]
     (let [translated-hash-map (->> (io/file directoryName)
+                                   (println! "번역될 디렉토리:" get-file-name)
                                    (get-files-stack)
                                    (translate-files #(get-response-data
                                                        (request-papago
