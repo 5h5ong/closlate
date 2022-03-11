@@ -20,20 +20,20 @@ Translate File & Directory. Just you want!
 ## Usage
 
 ```shell
-closlate {directory path} {language of file or directory name} {language to be translate}
+java "-Dfile.encoding=UTF-8" -jar ./closlate {directory path} {language of file or directory name} {language to be translate}
 ```
 
-- directory path
-  - 번역할 디렉토리의 경로
-- language : ko, en, ja ...
-  - language of file or directory name : 파일, 디렉토리 이름의 언어
-  - language to be translate : 번역되길 원하는 언어
-  
 ```shell
 [Example]
 # Linux-like or Unix-like?
-closlate "/Users/.../Desktop/Test" en ko
+java "-Dfile.encoding=UTF-8" -jar closlate "/Users/.../Desktop/Test" en ko
 
 # Windows
-closlate.exe "C:\Users\...\Desktop\Test" en ko
+java "-Dfile.encoding=UTF-8" -jar closlate.exe "C:\Users\...\Desktop\Test" en ko
 ```
+
+- directory path
+    - 번역할 디렉토리의 경로
+- language : ko, en, ja ...
+    - language of file or directory name : 파일, 디렉토리 이름의 언어
+    - language to be translate : 번역되길 원하는 언어
