@@ -94,7 +94,8 @@
                     :translatedFile (->>
                                       (str (translateFn filenameWithoutExtension) extension)
                                       (change-paths-filename filepath)
-                                      (io/file))))))))
+                                      (io/file)))))
+      nil)))
 
 (defn translate-files
   [translateFn files]
@@ -159,24 +160,23 @@
   [config directoryName source target]
   (let
     [{id :id secret :secret} config]
-    (let [translated-hash-map (->> (io/file directoryName)
-                                   (println! "번역될 디렉토리:" get-file-name)
-                                   (get-files-stack)
-                                   (translate-files #(get-response-data
-                                                       (request-papago
-                                                         secret
-                                                         id
-                                                         source
-                                                         target
-                                                         %)))
-                                   (filter some?))]
-      (doall (map (fn [hash-map] (let
-                                   [{origin     :originFile
-                                     translated :translatedFile} hash-map]
-                                   (println "before:" origin)
-                                   (println "after:" translated)
-                                   (.renameTo origin translated)))
-                  translated-hash-map)))))
+    (doall (map (fn [hash-map] (let
+                                 [{origin     :originFile
+                                   translated :translatedFile} hash-map]
+                                 (println "before:" origin)
+                                 (println "after:" translated)
+                                 (.renameTo origin translated)))
+                (->> (io/file directoryName)
+                     (println! "번역될 디렉토리:" get-file-name)
+                     (get-files-stack)
+                     (translate-files #(get-response-data
+                                         (request-papago
+                                           secret
+                                           id
+                                           source
+                                           target
+                                           %)))
+                     (filter some?))))))
 
 (defn -main
   [& args]
