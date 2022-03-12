@@ -1,8 +1,12 @@
 (ns closlate.path-test
-  (:require [closlate.path :as path]
-            [clojure.test :refer :all]))
+  (:require [closlate.path :as path])
+  (:require [clojure.test :refer :all]))
 
 (deftest default-functon-test
+  (testing "get-filename-without-extension"
+    (is (= (path/get-filename-without-extension "example.txt") "example")))
+  (testing "get-filename-extension"
+    (is (= (path/get-filename-extension "example.txt") ".txt")))
   (testing "exchange-windows-separator"
     (is (= (path/exchange-windows-separator "\\") "\\\\"))
     (is (= (path/exchange-windows-separator "/") "/")))
