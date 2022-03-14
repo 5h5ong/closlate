@@ -22,6 +22,11 @@
     (println prefix))
   data)
 
+(defn println!!
+  [prefix data]
+  (println prefix data)
+  data)
+
 (defn get-file-name [file] (.getName file))
 
 (defn get-file-path [file] (.getPath file))
@@ -156,31 +161,47 @@
       (print-not-exists-key keyVector)
       input-hashmap)))
 
-(defn translate!
-  [config directoryName source target]
-  (let
-    [{id :id secret :secret} config]
-    (doall (map (fn [hash-map] (let
-                                 [{origin     :originFile
-                                   translated :translatedFile} hash-map]
-                                 (println "before:" origin)
-                                 (println "after:" translated)
-                                 (.renameTo origin translated)))
-                (->> (io/file directoryName)
-                     (println! "번역될 디렉토리:" get-file-name)
-                     (get-files-stack)
-                     (translate-files #(get-response-data
-                                         (request-papago
-                                           secret
-                                           id
-                                           source
-                                           target
-                                           %)))
-                     (filter some?))))))
+(defn translate-hashmap->success-hashmap!
+  "
+  성공 여부를 translate-hashmap에 붙여 리턴
+  "
+  [translate-hashmap]
+  (reduce (fn [results value] (let
+                                [{origin     :originFile
+                                  translated :translatedFile} value]
+                                (->> (.renameTo origin translated)
+                                     (hash-map :originFile origin :translatedFile translated :success)
+                                     (conj results))))
+          []
+          translate-hashmap))
 
 (defn -main
   [& args]
-  (let [[directoryName source target] args]
-    (some-> (get-json-file "config.json")
-            (check-hashmap-keys [:id :secret])
-            (translate! directoryName source target))))
+  (let
+    [[directoryName source target] args
+     {id :id secret :secret} (some-> (get-json-file "config.json")
+                                     (check-hashmap-keys [:id :secret]))]
+    ; config가 존재하지 않을 때 앱 종료
+    (when (nil? (or id secret))
+      (System/exit 0))
+    (->> directoryName
+         (io/file)
+         (println! "번역될 디렉토리:" get-file-name)
+         (get-files-stack)
+         (translate-files #(get-response-data
+                             (request-papago
+                               secret
+                               id
+                               source
+                               target
+                               %)))
+         (filter some?)
+         (translate-hashmap->success-hashmap!)
+         (map (fn
+                [{origin     :originFile
+                  translated :translatedFile
+                  success    :success}]
+                (println "원래 이름:" (get-file-path origin))
+                (println "바뀐 이름:" (get-file-path translated))
+                (println "성공?:" success)))
+         (dorun))))
