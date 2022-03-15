@@ -11,21 +11,15 @@
 
 (defn println!
   "
-  들어온 data에 fn을 적용해 prefix와 함께 출력한 후 data를 반환함
+  프린트 후 data를 리턴함
 
-  threading macros 안에서 println이 필요할 때 사용됨.
+  threading macro에서 사용됨. 들어온 데이터를 프린트하고 리턴해 다음으로 넘김.
   "
-  [prefix fn data]
-  (->>
-    data
-    (fn)
-    (println prefix))
-  data)
-
-(defn println!!
-  [prefix data]
-  (println prefix data)
-  data)
+  ([text data] (println text) data)
+  ([text fn data] (->> data
+                       (fn)
+                       (println text))
+   data))
 
 (defn get-file-name [file] (.getName file))
 
@@ -186,8 +180,11 @@
       (System/exit 0))
     (->> directoryName
          (io/file)
-         (println! "번역될 디렉토리:" get-file-name)
+         (println! "[번역될 디렉토리]" get-file-name)
+         (println! "[0/3] 디렉토리와 파일 가져오는 중")
          (get-files-stack)
+         (println! "[1/3] 디렉토리와 파일 가져옴")
+         (println! "[1/3] 번역하는 중")
          (translate-files #(get-response-data
                              (request-papago
                                secret
@@ -196,6 +193,8 @@
                                target
                                %)))
          (filter some?)
+         (println! "[2/3] 번역 완료")
+         (println! "[2/3] 이름 변경하는 중")
          (translate-hashmap->success-hashmap!)
          (map (fn
                 [{origin     :originFile
@@ -204,4 +203,5 @@
                 (println "원래 이름:" (get-file-path origin))
                 (println "바뀐 이름:" (get-file-path translated))
                 (println "성공?:" success)))
-         (dorun))))
+         (dorun)
+         (println! "[3/3] 완료"))))
