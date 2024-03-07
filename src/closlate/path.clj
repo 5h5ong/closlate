@@ -4,18 +4,25 @@
 
 (defn get-filename-extension
   "파일 이름의 확장자를 리턴함. (ex) .json)"
-  [filename]
+  [full-filename]
   (->>
-    (str/split filename #"\.")
+    (str/split full-filename #"\.")
     (last)
     (str ".")))
 
+(defn get-extension-in-string [string]
+  (let [splited-dot (str/split string #"\.")
+        length (count splited-dot)]
+    (if (> length 1)
+      (str "." (last splited-dot))
+      "")))
+
 (defn get-filename-without-extension
   "파일 확장자를 제거한 파일의 이름을 리턴함"
-  [filename]
+  [full-filename]
   (let
-    [extension (get-filename-extension filename)]
-    (str/replace filename extension "")))
+    [extension (get-filename-extension full-filename)]
+    (str/replace full-filename extension "")))
 
 (defn exchange-windows-separator
   "

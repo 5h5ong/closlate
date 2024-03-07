@@ -4,10 +4,14 @@
   (:require [clj-http.client :as client])
   (:require [cheshire.core :as cheshire])
   (:require [clojure.walk :as walk])
+  (:require [closlate.config :refer [load-config-safe]])
   (:require [closlate.path :refer [check-secret
                                    get-filename-without-extension
                                    change-paths-filename
-                                   get-filename-extension]]))
+                                   get-extension-in-string]]))
+
+(def config (load-config-safe))
+(def deepl-api-key (:deepl-key config))
 
 (defn println!
   "
@@ -25,17 +29,21 @@
 
 (defn get-file-path [file] (.getPath file))
 
-; 파파고 api에 번역 요청
-(defn request-papago ([secret id source target text]
-                      (client/post "https://openapi.naver.com/v1/papago/n2mt"
-                                   {:headers     {"X-Naver-Client-Id" id "X-Naver-Client-Secret" secret}
-                                    :form-params {:source source :target target :text text}})))
+;(defn request-papago ([secret id source target text]
+;                      (client/post "https://openapi.naver.com/v1/papago/n2mt"
+;                                   {:headers     {"X-Naver-Client-Id" id "X-Naver-Client-Secret" secret}
+;                                    :form-params {:source source :target target :text text}})))
 
-;; 들어온 번역 데이터(:body)는 json 형식임. 따로 parsing을 해줘야 clojure에서 쓸 수 있음.
-;; cheshire/parse-string로 파싱한 후 get-in으로 map의 데이터를 조회함.
-(defn get-response-data [response] (->> (get-in response [:body])
-                                        (#(cheshire/parse-string % true))
-                                        (#(get-in % [:message :result :translatedText]))))
+(defn request-deepl ([target_lang texts]
+                     (let [response (client/post "https://api-free.deepl.com/v2/translate"
+                                                 {:headers {"Authorization" (str "DeepL-Auth-Key " deepl-api-key)
+                                                            "Content-Type"  "application/json"}
+                                                  :body    (cheshire/generate-string {:text        texts
+                                                                                      :target_lang target_lang})})]
+                       (-> response
+                           :body
+                           (cheshire/parse-string true)
+                           (get-in [:translations])))))
 
 (defn get-files
   "디렉토리 파일의 정보를 가져옴. 다만 안에 다른 디랙토리가 있을 시 가져오지 않음."
@@ -65,40 +73,9 @@
         ; 파일이라면 resultList에 집어넣음.
         (.isFile file) (recur (rest files) (conj resultList file))))))
 
-(defn translate-fake
-  [fileString]
-  (str "translate-fake-" fileString))
-
-(defn translate-file
-  "
-  들어온 파일의 이름을 번역해 새로운 io/file을 리턴함
-  "
-  [translateFn file]
-  (let
-    [filename (get-file-name file)
-     filepath (get-file-path file)]
-    ; 감춰진 파일은 번역에 포함되지 않음.
-    ; 디렉토리라면 단순히 번역, 파일이라면 확장자를 때서 번역
-    (if (check-secret filename)
-      (if (.isDirectory file)
-        (hash-map :originFile file
-                  :translatedFile (->>
-                                    (translateFn filename)
-                                    (change-paths-filename filepath)
-                                    (io/file)))
-        (let
-          [filenameWithoutExtension (get-filename-without-extension filename)
-           extension (get-filename-extension filename)]
-          (hash-map :originFile file
-                    :translatedFile (->>
-                                      (str (translateFn filenameWithoutExtension) extension)
-                                      (change-paths-filename filepath)
-                                      (io/file)))))
-      nil)))
-
-(defn translate-files
-  [translateFn files]
-  (map (partial translate-file translateFn) files))
+(defn is-file-secret? [file]
+  (-> (get-file-name file)
+      check-secret))
 
 (defn get-json-file
   "
@@ -155,53 +132,30 @@
       (print-not-exists-key keyVector)
       input-hashmap)))
 
-(defn translate-hashmap->success-hashmap!
-  "
-  성공 여부를 translate-hashmap에 붙여 리턴
-  "
-  [translate-hashmap]
-  (reduce (fn [results value] (let
-                                [{origin     :originFile
-                                  translated :translatedFile} value]
-                                (->> (.renameTo origin translated)
-                                     (hash-map :originFile origin :translatedFile translated :success)
-                                     (conj results))))
-          []
-          translate-hashmap))
+(defn replace-filename [origin new]
+  (.renameTo origin new))
+
+(defn replace-file [origin new]
+  (println (get-file-path origin))
+  (println (get-file-path new))
+  (replace-filename origin new))
 
 (defn -main
   [& args]
   (let
-    [[directoryName source target] args
-     {id :id secret :secret} (some-> (get-json-file "config.json")
-                                     (check-hashmap-keys [:id :secret]))]
-    ; config가 존재하지 않을 때 앱 종료
-    (when (nil? (or id secret))
-      (System/exit 0))
-    (->> directoryName
-         (io/file)
-         (println! "[번역될 디렉토리]" get-file-name)
-         (println! "[0/3] 디렉토리와 파일 가져오는 중")
-         (get-files-stack)
-         (println! "[1/3] 디렉토리와 파일 가져옴")
-         (println! "[1/3] 번역하는 중")
-         (translate-files #(get-response-data
-                             (request-papago
-                               secret
-                               id
-                               source
-                               target
-                               %)))
-         (filter some?)
-         (println! "[2/3] 번역 완료")
-         (println! "[2/3] 이름 변경하는 중")
-         (translate-hashmap->success-hashmap!)
-         (map (fn
-                [{origin     :originFile
-                  translated :translatedFile
-                  success    :success}]
-                (println "원래 이름:" (get-file-path origin))
-                (println "바뀐 이름:" (get-file-path translated))
-                (println "성공?:" success)))
-         (dorun)
-         (println! "[3/3] 완료"))))
+    [[directoryName target] args]
+    (let [files (->> directoryName
+                     io/file
+                     get-files-stack
+                     (filter is-file-secret?))
+          filepaths (map get-file-path files)
+          filenames-with-ext (map get-file-name files)
+          filenames (map get-filename-without-extension filenames-with-ext)
+          exts (map get-extension-in-string filenames-with-ext)
+          translated-filenames (->> (request-deepl target filenames)
+                                    (map :text))
+          translated-filesnames-with-ext (map str translated-filenames exts)
+          translated-paths (map change-paths-filename filepaths translated-filesnames-with-ext)
+          translated-files (map io/file translated-paths)]
+      (dorun (map replace-file files translated-files))
+      )))
